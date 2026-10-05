@@ -1,19 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SymptomSelector } from "@/components/SymptomSelector";
+import { VoiceButton } from "@/components/VoiceButton";
 
 type Message = { role: "ai" | "me"; text: string };
-type RecognitionWindow = Window & {
-  webkitSpeechRecognition?: new () => {
-    lang: string;
-    start: () => void;
-    onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
-    onerror: () => void;
-  };
-};
-
-export function DailyEntry() {
+export function DailyEntry({ initialDate }: { initialDate?: string }) {
   const [score, setScore] = useState(6);
   const [symptoms, setSymptoms] = useState<string[]>(["Насморк"]);
   const [note, setNote] = useState("");
@@ -30,12 +22,17 @@ export function DailyEntry() {
   const [photoInput, setPhotoInput] = useState<HTMLInputElement | null>(null);
   const [attachedPhotos, setAttachedPhotos] = useState<Array<{ label: string; dataUrl: string }>>([]);
   const [photoNotice, setPhotoNotice] = useState("");
+  const [eventDate, setEventDate] = useState(initialDate ?? "2026-10-05");
+
+  useEffect(() => {
+    if (initialDate) setEventDate(initialDate);
+  }, [initialDate]);
 
   async function previewCheckIn() {
     const response = await fetch("/api/checkins", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ score, symptoms, note, source: "WEB" })
+      body: JSON.stringify({ score, symptoms, note, eventDate, source: "WEB" })
     });
     const data = await response.json();
     setCheckInSummary(data.checkIn?.aiSummary ?? data.message ?? "Не удалось подготовить запись.");
@@ -49,7 +46,11 @@ export function DailyEntry() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ confirm: true, reviewId: checkInReviewId })
     });
-    if (response.ok) setSaved(true);
+    if (response.ok) {
+      const data = await response.json();
+      if (attachedPhotos.length && data.checkIn?.id) await uploadAttachedPhotos(data.checkIn.id);
+      setSaved(true);
+    }
   }
 
   async function sendAssistant(text = value) {
@@ -61,7 +62,7 @@ export function DailyEntry() {
       const response = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
+      body: JSON.stringify({ text, eventDate })
       });
       const data = await response.json();
       const summary = data.response ?? data.checkIn?.aiSummary ?? "Я не могу обработать этот запрос вне безопасных границ дневника.";
@@ -82,6 +83,8 @@ export function DailyEntry() {
       body: JSON.stringify({ confirm: true, reviewId: assistantReviewId })
     });
     if (response.ok) {
+      const data = await response.json();
+      if (attachedPhotos.length && data.checkIn?.id) await uploadAttachedPhotos(data.checkIn.id);
       setMessages((current) => [...current, { role: "ai", text: "Запись подтверждена и сохранена в общей медкарте." }]);
       setAssistantReviewId("");
     }
@@ -107,12 +110,12 @@ export function DailyEntry() {
     });
   }
 
-  async function uploadAttachedPhotos() {
+  async function uploadAttachedPhotos(checkInId: string) {
     if (!attachedPhotos.length) return;
     const response = await fetch("/api/photos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ photos: attachedPhotos, checkInId: "assistant-chat" })
+      body: JSON.stringify({ photos: attachedPhotos, checkInId })
     });
     if (response.ok) {
       setPhotoNotice(`Прикреплено фото: ${attachedPhotos.length}. Они будут включены в отчёт врачу.`);
@@ -121,24 +124,6 @@ export function DailyEntry() {
     } else {
       setPhotoNotice("Не удалось прикрепить фото. Попробуйте ещё раз.");
     }
-  }
-
-  function voice() {
-    const Recognition = (window as RecognitionWindow).webkitSpeechRecognition;
-    if (!Recognition) {
-      setVoiceStatus("В этом браузере нет demo-распознавания. Введите текст вручную.");
-      return;
-    }
-    const recognition = new Recognition();
-    recognition.lang = "ru-RU";
-    recognition.onresult = (event) => {
-      const text = event.results[0][0].transcript;
-      setValue(text);
-      setVoiceStatus("Голос распознан. Проверьте текст перед отправкой.");
-    };
-    recognition.onerror = () => setVoiceStatus("Не удалось распознать голос. Введите текст вручную.");
-    recognition.start();
-    setVoiceStatus("Слушаю…");
   }
 
   if (saved) {
@@ -218,13 +203,13 @@ export function DailyEntry() {
             </label>
             {attachedPhotos.length > 0 && <div className="chat-photo-list">
               {attachedPhotos.map((photo, index) => <span className="tag good" key={`${photo.label}-${index}`}>{photo.label}<button type="button" onClick={() => setAttachedPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Удалить ${photo.label}`}>×</button></span>)}
-              <button className="button secondary" onClick={uploadAttachedPhotos}>Сохранить фото</button>
+              <span className="photo-hint">Фото прикрепятся к записи после сохранения</span>
             </div>}
             {photoNotice && <p className="muted" style={{ fontSize: 11, margin: "8px 0 0" }}>{photoNotice}</p>}
           </div>
           <div className="row">
             <input value={value} onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => event.key === "Enter" && sendAssistant()} placeholder="Напишите, что было важно" />
-            <button className="button ghost" onClick={voice} aria-label="Голосовой ввод">🎙</button>
+            <VoiceButton onText={setValue} onStatus={setVoiceStatus} />
             <button className="button" onClick={() => sendAssistant()} disabled={assistantLoading} aria-label="Отправить сообщение">→</button>
           </div>
           {voiceStatus && <p className="muted" style={{ fontSize: 11 }}>{voiceStatus}</p>}
@@ -233,3 +218,5 @@ export function DailyEntry() {
     </section>
   );
 }
+
+

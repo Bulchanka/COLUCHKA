@@ -29,9 +29,9 @@ export function createAnnouncement(input: Omit<Announcement, "id" | "createdAt">
   globalThis.__koluchkaAnnouncements = [item, ...(globalThis.__koluchkaAnnouncements ?? [])];
   return item;
 }
-export function resetMedicalRecord() { globalThis.__koluchkaRecords = {}; return getMedicalRecord(); }
+export function resetMedicalRecord() { globalThis.__koluchkaRecords = {}; globalThis.__koluchkaAnnouncements = []; return getMedicalRecord(); }
 
-type DiaryInput = Pick<CheckIn, "score" | "symptoms" | "note" | "source">;
+type DiaryInput = Pick<CheckIn, "score" | "symptoms" | "note" | "source"> & { eventTime?: string };
 async function enrich(input: DiaryInput) {
   return analyzeDiaryInput(input.note, input.score, input.symptoms);
 }
@@ -41,7 +41,7 @@ export async function previewCheckIn(patientId: string, input: DiaryInput) {
   return previewCheckInFromDecision(patientId, input, result);
 }
 export function previewCheckInFromDecision(patientId: string, input: DiaryInput, result: AiDecision) {
-  return { id: "preview", patientId, eventTime: new Date().toISOString(), ...input, score: result.score, symptoms: result.symptoms, sourceChannel: input.source, dataQuality: "patient_reported" as const, isDemo: result.provider === "demo", aiSummary: result.summary, normalization: result.normalization, safetyMessage: result.safetyMessage, aiProvider: result.provider };
+  return { id: "preview", patientId, eventTime: input.eventTime ?? new Date().toISOString(), ...input, score: result.score, symptoms: result.symptoms, sourceChannel: input.source, dataQuality: "patient_reported" as const, isDemo: result.provider === "demo", aiSummary: result.summary, normalization: result.normalization, safetyMessage: result.safetyMessage, aiProvider: result.provider };
 }
 export async function addCheckIn(patientId: string, input: DiaryInput) {
   const result = await enrich(input);
@@ -70,7 +70,7 @@ export async function updateCheckIn(patientId: string, id: string, input: Omit<D
 }
 export function saveReviewedCheckIn(patientId: string, preview: CheckIn) {
   const record = getMedicalRecord(patientId);
-  const checkIn: CheckIn = { ...preview, id: `ci-${Date.now()}`, patientId, eventTime: new Date().toISOString() };
+  const checkIn: CheckIn = { ...preview, id: `ci-${Date.now()}`, patientId, eventTime: preview.eventTime ?? new Date().toISOString() };
   record.checkIns.unshift(checkIn);
   record.audit.unshift({ id: `a-${Date.now()}`, event: "Добавлен check-in после AI-проверки", channel: checkIn.source, at: "только что" });
   return checkIn;
@@ -120,6 +120,7 @@ export function undoMedication(patientId: string, medicationId: string) {
 }
 export function addPatientPhotos(patientId: string, photos: Array<Pick<MedicalRecord["photos"][number], "label" | "dataUrl">>, checkInId = "report") {
   const record = getMedicalRecord(patientId);
+  if (checkInId !== "report" && !record.checkIns.some((checkIn) => checkIn.id === checkInId)) return null;
   const added = photos.map((photo, index) => ({
     id: `photo-${Date.now()}-${index}`,
     checkInId,
@@ -131,6 +132,14 @@ export function addPatientPhotos(patientId: string, photos: Array<Pick<MedicalRe
   record.photos.unshift(...added);
   record.audit.unshift({ id: `a-${Date.now()}`, event: `Добавлено фото в отчёт (${added.length})`, channel: "WEB", at: "только что" });
   return added;
+}
+export function removePatientPhoto(patientId: string, photoId: string) {
+  const record = getMedicalRecord(patientId);
+  const index = record.photos.findIndex((photo) => photo.id === photoId);
+  if (index < 0) return null;
+  const [removed] = record.photos.splice(index, 1);
+  record.audit.unshift({ id: `a-${Date.now()}`, event: "Фото откреплено от записи", channel: "WEB", at: "только что" });
+  return removed;
 }
 export function updatePatientContext(patientId: string, district: string, allergens: string[], location?: { address: string; lat: number; lon: number }) {
   const record = getMedicalRecord(patientId);

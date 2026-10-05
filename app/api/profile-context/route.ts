@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { updatePatientContext } from "@/lib/store";
+import { getDistrictForLocation } from "@/lib/location";
 
 export async function PATCH(request: Request) {
   const session = getSession();
@@ -11,5 +12,6 @@ export async function PATCH(request: Request) {
     lat: Number(body.location.lat),
     lon: Number(body.location.lon)
   } : undefined;
-  return NextResponse.json({ record: updatePatientContext(session.id, String(body.district ?? ""), Array.isArray(body.allergens) ? body.allergens : [], location) });
+  const district = getDistrictForLocation(location)?.id ?? String(body.district ?? "");
+  return NextResponse.json({ record: updatePatientContext(session.id, district, Array.isArray(body.allergens) ? body.allergens : [], location) });
 }

@@ -11,3 +11,14 @@ export const ALLERGENS = ["Берёза", "Злаки", "Сорные травы
 export function getDistrict(id: string) {
   return MOSCOW_DISTRICTS.find((district) => district.id === id) ?? MOSCOW_DISTRICTS[0];
 }
+
+export function getDistrictForLocation(location?: { address: string; lat: number; lon: number }) {
+  if (!location) return null;
+  const address = location.address.toLocaleLowerCase("ru-RU");
+  const matched = MOSCOW_DISTRICTS.find((district) => address.includes(district.name.toLocaleLowerCase("ru-RU")));
+  if (matched) return matched;
+  if (location.lat < 55.68) return getDistrict("yasenevo");
+  if (location.lon > 37.68) return getDistrict("marina-roshcha");
+  if (location.lon < 37.49) return getDistrict("krylatskoye");
+  return location.lat > 55.78 ? getDistrict("tverskoy") : getDistrict("arbat");
+}

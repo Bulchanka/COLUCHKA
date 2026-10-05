@@ -13,7 +13,8 @@ export async function POST(request: Request) {
     if (!review) return NextResponse.json({ error: "review_expired", message: "Проверка истекла. Подготовьте запись ещё раз." }, { status: 409 });
     return NextResponse.json({ checkIn: saveReviewedCheckIn(session.id, review.checkIn) });
   }
-  const input = { score: Math.min(7, Math.max(1, body.score)), symptoms: body.symptoms, note: String(body.note ?? ""), source: "WEB" as const };
+  const selectedDate = typeof body.eventDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.eventDate) && body.eventDate <= "2026-10-05" ? body.eventDate : "";
+  const input = { score: Math.min(7, Math.max(1, body.score)), symptoms: body.symptoms, note: String(body.note ?? ""), source: "WEB" as const, eventTime: selectedDate ? `${selectedDate}T12:00:00+03:00` : undefined };
   const preview = await previewCheckIn(session.id, input);
   if (preview.safetyMessage) return NextResponse.json({ error: "out_of_scope", message: preview.safetyMessage, checkIn: null }, { status: 400 });
   const { safetyMessage: _safetyMessage, aiProvider, ...checkIn } = preview;

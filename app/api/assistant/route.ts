@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   if (result.shouldCreateCheckIn && !result.safetyMessage) {
     const preview = previewCheckInFromDecision(
       session.id,
-      { score: result.score, symptoms: result.symptoms, note: text, source: "WEB" },
+      { score: result.score, symptoms: result.symptoms, note: text, source: "WEB", eventTime: typeof body.eventDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.eventDate) && body.eventDate <= "2026-10-05" ? `${body.eventDate}T12:00:00+03:00` : undefined },
       result
     );
     const { safetyMessage: _safetyMessage, aiProvider, ...checkIn } = preview;

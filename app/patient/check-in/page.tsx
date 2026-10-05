@@ -1,2 +1,2 @@
 import { CheckInForm } from "@/components/CheckInForm";
-export default function CheckInPage() { return <main className="main"><div className="page-heading"><div><div className="eyebrow">Быстрая запись</div><h1>Отметьте,<br />как вы сегодня.</h1></div><span className="tag">до 2 минут</span></div><CheckInForm /></main>; }
+export default function CheckInPage({ searchParams }: { searchParams?: { date?: string } }) { return <main className="main"><div className="page-heading"><div><div className="eyebrow">Быстрая запись</div><h1>Отметьте,<br />как вы сегодня.</h1></div><span className="tag">до 2 минут</span></div><CheckInForm initialDate={searchParams?.date} /></main>; }
