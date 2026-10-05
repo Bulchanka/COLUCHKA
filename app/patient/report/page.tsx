@@ -1,0 +1,10 @@
+import { getMedicalRecord } from "@/lib/store";
+import Link from "next/link";
+import { getSession } from "@/lib/session";
+
+export default function ReportPage() {
+  const record = getMedicalRecord(getSession()!.id);
+  const avg = Math.round(record.checkIns.reduce((sum, x) => sum + x.score, 0) / record.checkIns.length * 10) / 10;
+  const adherence = Math.round(record.medications.reduce((sum, medication) => sum + medication.adherence, 0) / record.medications.length);
+  return <main className="main"><div className="page-heading"><div><div className="eyebrow">Перед приёмом · 16 октября</div><h1>Сводка<br />для врача.</h1></div><Link className="button secondary" href="/patient/history">Изменить период</Link></div><section className="card soft"><div className="section-head"><div><div className="eyebrow">AI-структурирование</div><h2>Картина за последние 7 дней</h2></div><span className="tag">проверьте перед отправкой</span></div><div className="grid grid-3" style={{ margin: "24px 0" }}><div><div className="metric">{avg}</div><div className="muted" style={{ fontSize: 12 }}>среднее самочувствие из 7</div></div><div><div className="metric">{record.checkIns.length}</div><div className="muted" style={{ fontSize: 12 }}>записей</div></div><div><div className="metric">{adherence}%</div><div className="muted" style={{ fontSize: 12 }}>выполнение лечения</div></div></div><p style={{ fontSize: 13 }}>В периоде чаще всего отмечались насморк и заложенность. Внешний фон: берёза на умеренном уровне. Пожалуйста, обсудите эту сводку с врачом — она не является диагнозом.</p></section><section className="card" style={{ marginTop: 18 }}><div className="section-head"><h2>Что увидит врач</h2><span className="source">source · WEB + MOCK_EMIAS</span></div><div className="tags"><span className="tag">Диагноз из медкарты</span><span className="tag">Patient reported</span><span className="tag good">Внешний фон · demo</span></div><button className="button" style={{ marginTop: 20 }}>Поделиться перед приёмом</button></section></main>;
+}

@@ -1,0 +1,5 @@
+import Link from "next/link";
+export default function DemoStatusPage() {
+  const rows = [["EMIAS", "MockEmiasDatabase", "mock", "Синтетическая БДЕ"], ["OpenAI-compatible AI", "AI summary provider", "fallback", "Локальная структуризация"], ["Yandex STT", "Browser / server fallback", "demo", "Голосовой ввод"], ["Environment", "Moscow snapshot", "demo", "Погода и пыльца"], ["Database", "MedicalRecord", "live local", "In-memory repository"]];
+  return <main className="main"><div className="page-heading"><div><div className="eyebrow">Для технической защиты</div><h1>Что работает<br />в demo.</h1></div><Link href="/" className="button secondary">На главную</Link></div><section className="card"><table className="doctor-table"><thead><tr><th>Сервис</th><th>Реализация</th><th>Режим</th><th>Комментарий</th></tr></thead><tbody>{rows.map(([name, implementation, mode, note]) => <tr key={name}><td><b>{name}</b></td><td>{implementation}</td><td><span className={`tag ${mode === "mock" || mode === "fallback" ? "alert" : "good"}`}>{mode}</span></td><td className="muted">{note}</td></tr>)}</tbody></table></section></main>;
+}
